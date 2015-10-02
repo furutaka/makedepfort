@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- mode: python -*-
 
-import sys, re, argparse
+import re, os, argparse
 
 # regular expression for include files
 incFileRE = re.compile("^\s*include\s+'(\S+)'",re.IGNORECASE)
@@ -43,16 +43,20 @@ def searchDep(inForFileName):
     
     return (incFileSet,modUseNamSet,modDefLST)
 
-def printDeps(InFileNam,excludeMPI):
+def printDeps(InFileNam,includeGlobal=False):
     deps = searchDep(inFileNam) # (set of include files,
                                 #  set of used module names,
                                 #  list of defined module names)
     #print deps
 
     # include files used in the source, as a string
+    if not includeGlobal:
+        # check if it's local, remove if not
+        for incFile in deps[0].copy(): # should use the copy
+            if not os.path.exists(incFile):
+                # print "%s is NOT local and is removed" % incFile
+                deps[0].remove(incFile)
     incStr = " ".join(s for s in deps[0])
-    if excludeMPI:
-        incStr = incStr.replace("mpif.h",'')
     # modules used in the source, as a string
     modUseStr = " ".join(s+".mod" for s in deps[1])
     # modules defined in the source, as a string
@@ -78,10 +82,10 @@ def printDeps(InFileNam,excludeMPI):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("ffile", nargs="+")
-    parser.add_argument("-m", "--exclude-MPI",
-                        help="exclude the dependency on 'mpi.h'",
+    parser.add_argument("-g", "--include-global",
+                        help="include dependencies on global include files",
                         action="store_true")
     args = parser.parse_args()
     # print args
     for inFileNam in args.ffile:
-        printDeps(inFileNam,excludeMPI=args.exclude_MPI)
+        printDeps(inFileNam,includeGlobal=args.include_global)
